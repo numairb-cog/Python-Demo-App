@@ -1,15 +1,21 @@
+import ipaddress
 import logging
 import math
+import os
 import random
 import requests
+import socket
 import time
+import urllib.parse
 
-from flask import Flask, render_template, render_template_string, request
+from flask import Flask, render_template, render_template_string, request, abort
 
 from demo import db
 
 app = Flask(__name__)
-logging.basicConfig(level=logging.DEBUG)
+
+log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
+logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
 
 
 class MissingArgumentException(Exception):
@@ -58,7 +64,8 @@ def cause_error(when):
 
 @app.route('/query/<dbtype>')
 def query_db(dbtype):
-    assert dbtype in ('pgsql', 'mysql')
+    if dbtype not in ('pgsql', 'mysql'):
+        abort(400, description=f"Invalid database type: {dbtype}")
 
     query_type = random.choice(('slow', 'error', 'normal', 'normal', 'normal', 'normal', 'normal', 'normal', 'normal', 'normal'))
     sleep = random.randrange(1, 8) / 10.0
@@ -89,6 +96,36 @@ def query_db(dbtype):
         dbtype=dbtype, type=query_type)
 
 
+def is_safe_url(url):
+    """Validate URL to prevent SSRF attacks."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        
+        if parsed.scheme not in ('http', 'https'):
+            return False, "Only http and https protocols are allowed"
+        
+        if not parsed.hostname:
+            return False, "Invalid URL: no hostname"
+        
+        try:
+            ip_addresses = socket.getaddrinfo(parsed.hostname, None)
+        except socket.gaierror:
+            return False, f"Cannot resolve hostname: {parsed.hostname}"
+        
+        for family, _, _, _, sockaddr in ip_addresses:
+            ip = sockaddr[0]
+            try:
+                ip_obj = ipaddress.ip_address(ip)
+                if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_reserved:
+                    return False, f"Access to private/internal IP addresses is not allowed: {ip}"
+            except ValueError:
+                return False, f"Invalid IP address: {ip}"
+        
+        return True, None
+    except Exception as e:
+        return False, f"URL validation error: {str(e)}"
+
+
 @app.route('/http')
 def http_exit_call():
     url = request.args.get('url')
@@ -100,10 +137,14 @@ def http_exit_call():
     if not lower_url.startswith('http://') and not lower_url.startswith('https://'):
         raise MissingArgumentException('required argument "url" must be a URL with protocol, like http://...')
 
-    resp = requests.get(url)
+    is_safe, error_msg = is_safe_url(url)
+    if not is_safe:
+        raise MissingArgumentException(f'URL not allowed: {error_msg}')
+
+    resp = requests.get(url, timeout=5, allow_redirects=False)
 
     return render_template_string(
-        "<!DOCTYPE html><title>HTTP Exit Call</title><h1>Response from {{url}}</h1><p>Content length {{len}}</p>",
+        "<!DOCTYPE html><title>HTTP Exit Call</title><h1>Response from {{url|e}}</h1><p>Content length {{len}}</p>",
         url=url, len=resp.headers.get('content-length', 'n/a'))
 
 
@@ -123,4 +164,7 @@ def random_exception():
 
 
 if __name__ == '__main__':
-    app.run('0.0.0.0', 9000, debug=True)
+    debug_mode = os.getenv('FLASK_DEBUG', '0') == '1'
+    host = os.getenv('FLASK_HOST', '127.0.0.1')
+    port = int(os.getenv('FLASK_PORT', '9000'))
+    app.run(host, port, debug=debug_mode)
