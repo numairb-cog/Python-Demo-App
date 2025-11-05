@@ -22,7 +22,7 @@ class MissingArgumentException(Exception):
     status_code = 400
 
     def __init__(self, message):
-        super(MissingArgumentException, self).__init__()
+        super(MissingArgumentException, self).__init__(message)
         self.message = message
 
 
@@ -31,12 +31,12 @@ def handle_missing_argument_exception(error):
     return render_template("error.html", msg=error.message), error.status_code
 
 
-@app.route('/')
+@app.route('/', methods=['GET'])
 def index():
     return render_template("index.html")
 
 
-@app.route('/wave/<whatever>')
+@app.route('/wave/<whatever>', methods=['GET'])
 def response_time_wave(whatever):
     a = 0.2
     b = 3
@@ -53,28 +53,28 @@ def response_time_wave(whatever):
     return render_template("wave.html", delay=delay)
 
 
-@app.route('/error/<when>')
+@app.route('/error/<when>', methods=['GET'])
 def cause_error(when):
     if when == 'always' or random.randint(0, 9) == 0:
         raise random_exception()
     return render_template("ok.html")
 
 
-@app.route('/query/<dbtype>')
+@app.route('/query/<dbtype>', methods=['GET'])
 def query_db(dbtype):
     if dbtype not in ('pgsql', 'mysql'):
         abort(400, description=f"Invalid database type: {dbtype}")
 
-    query_type = random.choice(('slow', 'error', 'normal', 'normal', 'normal', 'normal', 'normal', 'normal', 'normal', 'normal'))
+    query_kind = random.choice(('slow', 'error', 'normal', 'normal', 'normal', 'normal', 'normal', 'normal', 'normal', 'normal'))
     sleep = random.randrange(1, 8) / 10.0
 
     if dbtype == 'pgsql':
         with db.pgsql() as cxn:
             cur = cxn.cursor()
 
-            if query_type == 'slow':  # Be a slow query
+            if query_kind == 'slow':
                 cur.execute("SELECT pg_sleep(%f)" % sleep)
-            elif query_type == 'error':  # Be an erroneous query
+            elif query_kind == 'error':
                 cur.execute("SELECT sql - error")
             else:
                 cur.execute("SELECT 123")
@@ -82,14 +82,14 @@ def query_db(dbtype):
         with db.mysql() as cxn:
             cur = cxn.cursor()
 
-            if query_type == 'slow':  # Be a slow query
+            if query_kind == 'slow':
                 cur.execute("SELECT SLEEP(%f)" % sleep)
-            elif query_type == 'error':  # Be an erroneous query
+            elif query_kind == 'error':
                 cur.execute("SELECT sql - error")
             else:
                 cur.execute("SELECT 123")
 
-    return render_template("query.html", dbtype=dbtype, type=query_type)
+    return render_template("query.html", dbtype=dbtype, query_kind=query_kind)
 
 
 def is_safe_url(url):
@@ -145,12 +145,16 @@ def is_safe_url(url):
     return True, None
 
 
-@app.route('/http')
+@app.route('/http', methods=['GET'])
 def http_exit_call():
     url = request.args.get('url')
 
     if url is None:
         raise MissingArgumentException('required argument "url" is missing')
+    
+    if len(url) > 2048:
+        logging.warning(f"URL validation failed: URL too long ({len(url)} chars)")
+        raise MissingArgumentException('URL too long')
 
     lower_url = url.lower()
     if not lower_url.startswith('http://') and not lower_url.startswith('https://'):
@@ -164,17 +168,16 @@ def http_exit_call():
     session.trust_env = False
     
     try:
-        resp = session.get(
+        with session.get(
             url, 
             timeout=(3.05, 5), 
-            allow_redirects=False,
-            proxies={'http': None, 'https': None}
-        )
-        content_length = resp.headers.get('content-length', 'n/a')
-        return render_template("http_exit.html", url=url, len=content_length)
+            allow_redirects=False
+        ) as resp:
+            content_length = resp.headers.get('content-length', 'n/a')
+            return render_template("http_exit.html", url=url, len=content_length)
     except requests.exceptions.RequestException as e:
         logging.error(f"Request failed for {url}: {str(e)}")
-        raise MissingArgumentException("Request failed")
+        abort(502, description="Upstream request failed")
     finally:
         session.close()
 
@@ -189,7 +192,7 @@ def random_exception():
         return my_list[10]
 
     if random.randint(0, 3) == 0:
-        assert True is False
+        raise RuntimeError("Forced failure for testing")
 
     return int('abc')
 
