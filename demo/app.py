@@ -16,7 +16,7 @@ class MissingArgumentException(Exception):
     status_code = 400
 
     def __init__(self, message):
-        super(MissingArgumentException, self).__init__()
+        super().__init__()
         self.message = message
 
 
@@ -46,7 +46,7 @@ def response_time_wave(whatever):
 
     delay = a * (math.sin(b * x + c) + 1.0)
     time.sleep(delay)
-    return render_template_string("<!DOCTYPE html><title>Wave</title><h1>%s</h1>" % (delay,))
+    return render_template_string(f"<!DOCTYPE html><title>Wave</title><h1>{delay}</h1>")
 
 
 @app.route('/error/<when>')
@@ -68,7 +68,7 @@ def query_db(dbtype):
             cur = cxn.cursor()
 
             if query_type == 'slow':  # Be a slow query
-                cur.execute("SELECT pg_sleep(%f)" % sleep)
+                cur.execute(f"SELECT pg_sleep({sleep})")
             elif query_type == 'error':  # Be an erroneous query
                 cur.execute("SELECT sql - error")
             else:
@@ -78,7 +78,7 @@ def query_db(dbtype):
             cur = cxn.cursor()
 
             if query_type == 'slow':  # Be a slow query
-                cur.execute("SELECT SLEEP(%f)" % sleep)
+                cur.execute(f"SELECT SLEEP({sleep})")
             elif query_type == 'error':  # Be an erroneous query
                 cur.execute("SELECT sql - error")
             else:
