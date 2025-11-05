@@ -1,11 +1,12 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 	"html/template"
 	"io"
 	"math"
-	"math/rand"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,6 +18,14 @@ import (
 const (
 	contentTypeHTML = "text/html; charset=utf-8"
 )
+
+func secureRandomInt(max int) int {
+	nBig, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
+	if err != nil {
+		return 0
+	}
+	return int(nBig.Int64())
+}
 
 func indexHandler(c *gin.Context) {
 	tmpl, err := template.ParseFiles("templates/index.html")
@@ -62,10 +71,10 @@ func waveHandler(c *gin.Context) {
 func errorHandler(c *gin.Context) {
 	when := c.Param("when")
 
-	shouldError := when == "always" || rand.Intn(10) == 0
+	shouldError := when == "always" || secureRandomInt(10) == 0
 
 	if shouldError {
-		errorType := rand.Intn(4)
+		errorType := secureRandomInt(4)
 		switch errorType {
 		case 0:
 			panic("KeyError: 'typo_eror'")
@@ -92,8 +101,8 @@ func queryHandler(c *gin.Context) {
 	}
 
 	queryTypes := []string{"slow", "error", "normal", "normal", "normal", "normal", "normal", "normal", "normal", "normal"}
-	queryType := queryTypes[rand.Intn(len(queryTypes))]
-	sleepTime := float64(rand.Intn(7)+1) / 10.0
+	queryType := queryTypes[secureRandomInt(len(queryTypes))]
+	sleepTime := float64(secureRandomInt(7)+1) / 10.0
 
 	database := GetDB()
 	if database == nil {
