@@ -12,7 +12,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const testPort = "9001"
+const (
+	testPort             = "9001"
+	errExpectedStatus200 = "Expected status 200, got %d"
+	errExpectedStatus400 = "Expected status 400, got %d"
+)
 
 var testBaseURL string
 
@@ -69,7 +73,7 @@ func readBody(t *testing.T, resp *http.Response) string {
 func TestAcceptanceIndexPage(t *testing.T) {
 	resp := makeRequest(t, "/")
 	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+		t.Errorf(errExpectedStatus200, resp.StatusCode)
 	}
 
 	body := readBody(t, resp)
@@ -84,7 +88,7 @@ func TestAcceptanceIndexPage(t *testing.T) {
 func TestAcceptanceWaveEndpoint(t *testing.T) {
 	resp := makeRequest(t, "/wave/123")
 	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+		t.Errorf(errExpectedStatus200, resp.StatusCode)
 	}
 
 	body := readBody(t, resp)
@@ -107,7 +111,7 @@ func TestAcceptanceErrorEndpoint(t *testing.T) {
 func TestAcceptanceQueryInvalidType(t *testing.T) {
 	resp := makeRequest(t, "/query/mysql")
 	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", resp.StatusCode)
+		t.Errorf(errExpectedStatus400, resp.StatusCode)
 	}
 
 	body := readBody(t, resp)
@@ -119,7 +123,7 @@ func TestAcceptanceQueryInvalidType(t *testing.T) {
 func TestAcceptanceHTTPMissingURL(t *testing.T) {
 	resp := makeRequest(t, "/http")
 	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", resp.StatusCode)
+		t.Errorf(errExpectedStatus400, resp.StatusCode)
 	}
 
 	body := readBody(t, resp)
@@ -131,7 +135,7 @@ func TestAcceptanceHTTPMissingURL(t *testing.T) {
 func TestAcceptanceHTTPInvalidURL(t *testing.T) {
 	resp := makeRequest(t, "/http?url=notaurl")
 	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", resp.StatusCode)
+		t.Errorf(errExpectedStatus400, resp.StatusCode)
 	}
 
 	body := readBody(t, resp)
