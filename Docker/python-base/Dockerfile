@@ -26,16 +26,19 @@ RUN apt-get -y install wget
 RUN apt-get -y install zip
 RUN apt-get -y install unzip
 RUN apt-get -y install git
-RUN apt-get -y install python-dev
+RUN apt-get -y install software-properties-common
+RUN add-apt-repository -y ppa:deadsnakes/ppa
+RUN apt-get update
+RUN apt-get -y install python3.12
+RUN apt-get -y install python3.12-dev
+RUN apt-get -y install python3-pip
 RUN apt-get -y install postgresql
 RUN apt-get -y install libpq-dev
 RUN apt-get -y install postgresql-client
 RUN apt-get -y install mysql-server
-RUN apt-get -y install python-mysqldb
+RUN apt-get -y install libmysqlclient-dev
 RUN apt-get -y install siege
-ADD /distribute_setup.py /tmp/
-RUN python /tmp/distribute_setup.py
-RUN easy_install pip
-RUN pip install virtualenv
+RUN python3.12 -m pip install --upgrade pip
+RUN python3.12 -m pip install virtualenv
 
 ##################### INSTALLATION END #####################
