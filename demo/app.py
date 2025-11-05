@@ -28,9 +28,7 @@ class MissingArgumentException(Exception):
 
 @app.errorhandler(MissingArgumentException)
 def handle_missing_argument_exception(error):
-    return render_template_string(
-        "<!DOCTYPE html><title>Missing Required Argument</title><h1>Missing required argument: {{msg}}",
-        msg=error.message)
+    return render_template("error.html", msg=error.message)
 
 
 @app.route('/')
@@ -102,28 +100,49 @@ def is_safe_url(url):
         parsed = urllib.parse.urlparse(url)
         
         if parsed.scheme not in ('http', 'https'):
-            return False, "Only http and https protocols are allowed"
+            logging.warning(f"URL validation failed: invalid scheme {parsed.scheme}")
+            return False, "URL not allowed"
         
         if not parsed.hostname:
-            return False, "Invalid URL: no hostname"
+            logging.warning("URL validation failed: no hostname")
+            return False, "URL not allowed"
+        
+        allowed_hosts = os.getenv('ALLOWED_OUTBOUND_HOSTS', '').split(',')
+        allowed_hosts = [h.strip() for h in allowed_hosts if h.strip()]
+        
+        if allowed_hosts and parsed.hostname not in allowed_hosts:
+            logging.warning(f"URL validation failed: hostname {parsed.hostname} not in allowlist")
+            return False, "URL not allowed"
+        
+        allowed_ports = os.getenv('ALLOWED_OUTBOUND_PORTS', '80,443').split(',')
+        allowed_ports = [int(p.strip()) for p in allowed_ports if p.strip()]
+        port = parsed.port or (443 if parsed.scheme == 'https' else 80)
+        
+        if port not in allowed_ports:
+            logging.warning(f"URL validation failed: port {port} not in allowed ports")
+            return False, "URL not allowed"
         
         try:
             ip_addresses = socket.getaddrinfo(parsed.hostname, None)
-        except socket.gaierror:
-            return False, f"Cannot resolve hostname: {parsed.hostname}"
+        except socket.gaierror as e:
+            logging.warning(f"URL validation failed: cannot resolve {parsed.hostname}: {str(e)}")
+            return False, "URL not allowed"
         
         for family, _, _, _, sockaddr in ip_addresses:
             ip = sockaddr[0]
             try:
                 ip_obj = ipaddress.ip_address(ip)
                 if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_reserved:
-                    return False, f"Access to private/internal IP addresses is not allowed: {ip}"
-            except ValueError:
-                return False, f"Invalid IP address: {ip}"
+                    logging.warning(f"URL validation failed: {parsed.hostname} resolves to private/internal IP {ip}")
+                    return False, "URL not allowed"
+            except ValueError as e:
+                logging.warning(f"URL validation failed: invalid IP {ip}: {str(e)}")
+                return False, "URL not allowed"
         
         return True, None
     except Exception as e:
-        return False, f"URL validation error: {str(e)}"
+        logging.error(f"URL validation error: {str(e)}")
+        return False, "URL not allowed"
 
 
 @app.route('/http')
@@ -139,13 +158,24 @@ def http_exit_call():
 
     is_safe, error_msg = is_safe_url(url)
     if not is_safe:
-        raise MissingArgumentException(f'URL not allowed: {error_msg}')
+        raise MissingArgumentException(error_msg)
 
-    resp = requests.get(url, timeout=5, allow_redirects=False)
+    try:
+        resp = requests.get(
+            url, 
+            timeout=5, 
+            allow_redirects=False,
+            proxies={'http': None, 'https': None}
+        )
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Request failed for {url}: {str(e)}")
+        raise MissingArgumentException("Request failed")
 
-    return render_template_string(
-        "<!DOCTYPE html><title>HTTP Exit Call</title><h1>Response from {{url|e}}</h1><p>Content length {{len}}</p>",
-        url=url, len=resp.headers.get('content-length', 'n/a'))
+    return render_template(
+        "http_exit.html",
+        url=url, 
+        len=resp.headers.get('content-length', 'n/a')
+    )
 
 
 def random_exception():
