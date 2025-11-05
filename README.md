@@ -13,7 +13,7 @@ NOTE: To use the AppDynamics Python Agent, you must have a compatible (4.0+) App
 
 ## Installation
 
-Python 2.6 or 2.7 are required. MacOS X and recent Linux distributions should have these preinstalled. Older Linux distributions (like CentOS 5) may come with a version of Python is too old, but you should be able to easily find packages for Python 2.7.
+Python 3.7 or higher is required. MacOS X and recent Linux distributions should have these preinstalled.
 
 You must have `pip` and `virtualenv` installed. These may already be installed for you. If not, install `pip` with:
 
@@ -31,7 +31,7 @@ Create a virtualenv:
 
 ```
 virtualenv env
-env/bin/pip install -r requirements.txt
+env/bin/pip3 install -r requirements.txt
 ```
 
 Install and configure MySQL and/or PostgreSQL. They both are configured in `demo/config.py` to be running on localhost with the default port, a user named `test`, with password `test`, and a database named `test`. There do not need to be any tables or anything in the `test` database.
@@ -41,7 +41,7 @@ The web server runs on port 9000.
 To run the development server:
 
 ```
-env/bin/python demo/app.py
+env/bin/python3 demo/app.py
 ```
 
 To run in production:
@@ -55,13 +55,13 @@ env/bin/gunicorn -w 4 -b 0.0.0.0:9000 demo.app:app
 If your version of pip is older than 1.5, upgrade pip with:
 
 ```
-pip install -U pip
+pip3 install -U pip
 ```
 
 Then install the agent into your virtualenv:
 
 ```
-env/bin/pip install --pre appdynamics
+env/bin/pip3 install --pre appdynamics
 ```
 
 Run the agent with the `pyagent` command and a configuration file (there's a sample configuration file included in this repository, `appdynamics.cfg`):
