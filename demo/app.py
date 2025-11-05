@@ -16,7 +16,7 @@ class MissingArgumentException(Exception):
     status_code = 400
 
     def __init__(self, message):
-        super(MissingArgumentException, self).__init__()
+        super().__init__()
         self.message = message
 
 
