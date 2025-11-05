@@ -33,7 +33,7 @@ RUN apt-get -y install postgresql-client
 RUN apt-get -y install mysql-server
 RUN apt-get -y install libmysqlclient-dev
 RUN apt-get -y install siege
-RUN apt-get -y install python3-pip
+RUN apt-get -y install --no-install-recommends python3-pip
 RUN python3.8 -m pip install --upgrade pip
 RUN pip install virtualenv
 
