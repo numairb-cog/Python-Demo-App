@@ -2,12 +2,12 @@ from contextlib import closing, contextmanager
 
 try:
     from mysql import connector as mysql_connector
-except:
+except ImportError:
     mysql_connector = None
 
 try:
     import psycopg2.pool
-except:
+except ImportError:
     psycopg2 = None
 
 from demo import config
