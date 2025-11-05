@@ -1,93 +1,128 @@
-Python Demo App
-===============
+# Go Gin Demo App
 
-A trivial Flask web app that can be used to demo performance monitoring features. The app has routes that do things like:
+A demo web application built with Go and the Gin framework that demonstrates various features for performance monitoring and testing. This app has routes that:
 
-1. Sleep in a way that draws a pretty response time graph.
-2. Raise uncaught exceptions in application code.
-3. Simulate slow database calls in MySQL and PostgreSQL.
-4. Make external HTTP calls.
-5. Return HTTP errors (5xx and 4xx).
+1. Sleep in a way that draws a pretty response time graph (sine wave pattern)
+2. Raise uncaught exceptions in application code
+3. Simulate slow database calls in PostgreSQL
+4. Make external HTTP calls
+5. Return HTTP errors (5xx and 4xx)
 
-NOTE: To use the AppDynamics Python Agent, you must have a compatible (4.0+) AppDynamics controller in SAAS or On Premise and a license provisioned for Python agents.
+## Requirements
+
+- Go 1.18 or higher
+- PostgreSQL database (optional - app will run without it but /query routes won't work)
 
 ## Installation
 
-Python 2.6 or 2.7 are required. MacOS X and recent Linux distributions should have these preinstalled. Older Linux distributions (like CentOS 5) may come with a version of Python is too old, but you should be able to easily find packages for Python 2.7.
+Clone the repository:
 
-You must have `pip` and `virtualenv` installed. These may already be installed for you. If not, install `pip` with:
-
-```
-sudo easy_install pip
-```
-
-And then use `pip` to install `virtualenv`:
-
-```
-sudo pip install virtualenv
+```bash
+git clone https://github.com/numairb-cog/Python-Demo-App.git
+cd Python-Demo-App
 ```
 
-Create a virtualenv:
+Install dependencies:
 
-```
-virtualenv env
-env/bin/pip install -r requirements.txt
-```
-
-Install and configure MySQL and/or PostgreSQL. They both are configured in `demo/config.py` to be running on localhost with the default port, a user named `test`, with password `test`, and a database named `test`. There do not need to be any tables or anything in the `test` database.
-
-The web server runs on port 9000.
-
-To run the development server:
-
-```
-env/bin/python demo/app.py
+```bash
+go mod download
 ```
 
-To run in production:
+## Configuration
 
-```
-env/bin/gunicorn -w 4 -b 0.0.0.0:9000 demo.app:app
-```
+The application uses environment variables for configuration:
 
-## Running with the agent
+- `DEMO_PGSQL_USER` - PostgreSQL username (default: "test")
+- `DEMO_PGSQL_PASSWORD` - PostgreSQL password (default: "test")
+- `DEMO_PGSQL_HOST` - PostgreSQL host (default: "127.0.0.1")
+- `DEMO_PGSQL_DB` - PostgreSQL database name (default: "test")
+- `PORT` - Server port (default: "9000")
 
-If your version of pip is older than 1.5, upgrade pip with:
+## Database Setup (Optional)
 
-```
-pip install -U pip
-```
+If you want to use the database query routes, install and configure PostgreSQL:
 
-Then install the agent into your virtualenv:
+```bash
+# The database configuration defaults to:
+# - Host: 127.0.0.1
+# - Port: 5432 (default PostgreSQL port)
+# - User: test
+# - Password: test
+# - Database: test
 
-```
-env/bin/pip install --pre appdynamics
-```
-
-Run the agent with the `pyagent` command and a configuration file (there's a sample configuration file included in this repository, `appdynamics.cfg`):
-
-```
-env/bin/pyagent run -c appdynamics.cfg - env/bin/gunicorn -w 4 -b 0.0.0.0:9000 demo.app:app
-```
-
-## Generating load
-
-Install siege through your package manager (`yum install siege` on Red Hat, `apt-get install siege` on Debian, or `brew install siege` on Mac). Edit the siege.txt (or copy it and edit the copy) and edit the variables defined at the top to specify the exit calls you wish to make, then run:
-
-```
-siege -d 1 -f siege.txt
+# Create a test database and user (example for PostgreSQL):
+sudo -u postgres psql -c "CREATE USER test WITH PASSWORD 'test';"
+sudo -u postgres psql -c "CREATE DATABASE test OWNER test;"
 ```
 
-## Run with Docker
+You don't need any tables in the database - the app just executes simple queries for testing.
 
-In Docker directory, add configuration value to CONTR_HOST, ACCOUNT_NAME, ACCESS_KEY, APP_NAME, TIER_NAME, NODE_NAME in startPython.sh.
+## Running the Application
 
-Run docker with
+### Development Mode
 
+```bash
+go run main.go
 ```
-./startPython.sh
+
+### Production Build
+
+```bash
+go build -o demo-app
+./demo-app
 ```
 
-## HTTP Exit Call / Distributed Correlation Testing
+The web server runs on port 9000 by default. Access it at http://localhost:9000
 
-The AppDynamics Python agent supports distributed correlation across tiers. The agent supports both being the originating tier and the continuing tier. To demonstrate this and test it out, you can use the `/http` endpoint to cause an HTTP exit call with a correlation header. This is useful for testing cross-tier correlation (as of 4.0.0, the Python agent does not support cross-app correlation). For example, if you have a .NET instrumented tier at 192.168.0.1, you can cause correlation by going to `http://127.0.0.1/http?url=http://192.168.0.1/`.
+## Available Routes
+
+- `/` - Index page with links to all demo routes
+- `/wave/<id>` - Variable response time with sine wave delay (e.g., `/wave/123`)
+- `/error/always` - Always raises an exception
+- `/error/sometimes` - Raises an exception 10% of the time
+- `/query/pgsql` - PostgreSQL query simulator (slow/error/normal queries)
+- `/http?url=<url>` - HTTP exit call (e.g., `/http?url=http://example.com`)
+
+## Testing
+
+Build and test the application:
+
+```bash
+# Format code
+go fmt ./...
+
+# Check for common errors
+go vet ./...
+
+# Build the application
+go build
+
+# Run the application
+go run main.go
+```
+
+Then visit http://localhost:9000 in your browser to test all routes.
+
+## Generating Load
+
+You can use tools like `siege`, `ab` (Apache Bench), or `wrk` to generate load:
+
+```bash
+# Using siege
+siege -d 1 -c 10 http://localhost:9000/
+
+# Using Apache Bench
+ab -n 1000 -c 10 http://localhost:9000/wave/1
+
+# Using wrk
+wrk -t10 -c100 -d30s http://localhost:9000/
+```
+
+## Dependencies
+
+- [Gin Web Framework](https://github.com/gin-gonic/gin) - HTTP web framework
+- [pq](https://github.com/lib/pq) - PostgreSQL driver
+
+## License
+
+See LICENSE file for details.
