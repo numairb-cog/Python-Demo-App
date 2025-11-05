@@ -8,9 +8,14 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+)
+
+const (
+	contentTypeHTML = "text/html; charset=utf-8"
 )
 
 func indexHandler(c *gin.Context) {
@@ -28,7 +33,7 @@ func indexHandler(c *gin.Context) {
 		"HTTPExitCall":   "/http",
 	}
 
-	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Header("Content-Type", contentTypeHTML)
 	if err := tmpl.Execute(c.Writer, data); err != nil {
 		c.String(http.StatusInternalServerError, "Error rendering template: %v", err)
 	}
@@ -50,7 +55,7 @@ func waveHandler(c *gin.Context) {
 	time.Sleep(time.Duration(delay * float64(time.Second)))
 
 	html := fmt.Sprintf("<!DOCTYPE html><title>Wave</title><h1>%f</h1>", delay)
-	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Header("Content-Type", contentTypeHTML)
 	c.String(http.StatusOK, html)
 }
 
@@ -74,7 +79,7 @@ func errorHandler(c *gin.Context) {
 	}
 
 	html := "<!DOCTYPE html><title>No Exception This Time</title><h1>OK This Time</h1>"
-	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Header("Content-Type", contentTypeHTML)
 	c.String(http.StatusOK, html)
 }
 
@@ -113,7 +118,7 @@ func queryHandler(c *gin.Context) {
 	}
 
 	html := fmt.Sprintf("<!DOCTYPE html><title>Query %s</title><h1>Ran DB Query %s</h1>", dbtype, queryType)
-	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Header("Content-Type", contentTypeHTML)
 	c.String(http.StatusOK, html)
 }
 
@@ -122,14 +127,14 @@ func httpHandler(c *gin.Context) {
 
 	if url == "" {
 		html := "<!DOCTYPE html><title>Missing Required Argument</title><h1>Missing required argument: url</h1>"
-		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.Header("Content-Type", contentTypeHTML)
 		c.String(http.StatusBadRequest, html)
 		return
 	}
 
-	if len(url) < 7 || (url[:7] != "http://" && url[:8] != "https://") {
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
 		html := "<!DOCTYPE html><title>Missing Required Argument</title><h1>Missing required argument: url must be a URL with protocol, like http://...</h1>"
-		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.Header("Content-Type", contentTypeHTML)
 		c.String(http.StatusBadRequest, html)
 		return
 	}
@@ -148,6 +153,6 @@ func httpHandler(c *gin.Context) {
 	}
 
 	html := fmt.Sprintf("<!DOCTYPE html><title>HTTP Exit Call</title><h1>Response from %s</h1><p>Content length %s</p>", url, contentLength)
-	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.Header("Content-Type", contentTypeHTML)
 	c.String(http.StatusOK, html)
 }
