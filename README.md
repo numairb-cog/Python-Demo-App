@@ -13,7 +13,7 @@ NOTE: To use the AppDynamics Python Agent, you must have a compatible (4.0+) App
 
 ## Installation
 
-Python 2.6 or 2.7 are required. MacOS X and recent Linux distributions should have these preinstalled. Older Linux distributions (like CentOS 5) may come with a version of Python is too old, but you should be able to easily find packages for Python 2.7.
+Python 3.8 or higher is required. MacOS X and recent Linux distributions should have Python 3.8 available. You can install it using your system package manager or from python.org.
 
 You must have `pip` and `virtualenv` installed. These may already be installed for you. If not, install `pip` with:
 
