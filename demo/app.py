@@ -1,5 +1,6 @@
 import logging
 import math
+import os
 import random
 import requests
 import time
@@ -100,7 +101,8 @@ def http_exit_call():
     if not lower_url.startswith('http://') and not lower_url.startswith('https://'):
         raise MissingArgumentException('required argument "url" must be a URL with protocol, like http://...')
 
-    resp = requests.get(url)
+    timeout = float(os.getenv("HTTP_REQUEST_TIMEOUT", "5"))
+    resp = requests.get(url, timeout=timeout)
 
     return render_template_string(
         "<!DOCTYPE html><title>HTTP Exit Call</title><h1>Response from {{url}}</h1><p>Content length {{len}}</p>",
@@ -123,4 +125,5 @@ def random_exception():
 
 
 if __name__ == '__main__':
-    app.run('0.0.0.0', 9000, debug=True)
+    debug = os.getenv("FLASK_DEBUG", "0") == "1"
+    app.run('0.0.0.0', 9000, debug=debug)
