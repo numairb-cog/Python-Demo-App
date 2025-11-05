@@ -1,8 +1,12 @@
+import ipaddress
 import logging
 import math
+import os
 import random
 import requests
+import socket
 import time
+from urllib.parse import urlparse
 
 from flask import Flask, render_template, render_template_string, request
 
@@ -16,7 +20,7 @@ class MissingArgumentException(Exception):
     status_code = 400
 
     def __init__(self, message):
-        super(MissingArgumentException, self).__init__()
+        super().__init__()
         self.message = message
 
 
@@ -58,7 +62,8 @@ def cause_error(when):
 
 @app.route('/query/<dbtype>')
 def query_db(dbtype):
-    assert dbtype in ('pgsql', 'mysql')
+    if dbtype not in ('pgsql', 'mysql'):
+        raise MissingArgumentException('dbtype must be pgsql or mysql')
 
     query_type = random.choice(('slow', 'error', 'normal', 'normal', 'normal', 'normal', 'normal', 'normal', 'normal', 'normal'))
     sleep = random.randrange(1, 8) / 10.0
@@ -100,7 +105,20 @@ def http_exit_call():
     if not lower_url.startswith('http://') and not lower_url.startswith('https://'):
         raise MissingArgumentException('required argument "url" must be a URL with protocol, like http://...')
 
-    resp = requests.get(url)
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    if hostname:
+        try:
+            addr_info = socket.getaddrinfo(hostname, None)
+            for info in addr_info:
+                ip = ipaddress.ip_address(info[4][0])
+                if ip.is_loopback or ip.is_unspecified or ip.is_link_local:
+                    raise MissingArgumentException('URL resolves to a blocked address (loopback/unspecified/link-local)')
+        except (socket.gaierror, ValueError) as e:
+            raise MissingArgumentException(f'Invalid hostname or address: {str(e)}')
+
+    timeout = float(os.getenv("HTTP_REQUEST_TIMEOUT", "5"))
+    resp = requests.get(url, timeout=timeout, allow_redirects=False, proxies={"http": None, "https": None})
 
     return render_template_string(
         "<!DOCTYPE html><title>HTTP Exit Call</title><h1>Response from {{url}}</h1><p>Content length {{len}}</p>",
@@ -123,4 +141,5 @@ def random_exception():
 
 
 if __name__ == '__main__':
-    app.run('0.0.0.0', 9000, debug=True)
+    debug = os.getenv("FLASK_DEBUG", "0") == "1"
+    app.run('0.0.0.0', 9000, debug=debug)

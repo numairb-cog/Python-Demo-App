@@ -1,7 +1,7 @@
 from contextlib import closing, contextmanager
 
 try:
-    from mysql import connector as mysql_connector
+    import mysql.connector as mysql_connector
 except:
     mysql_connector = None
 
