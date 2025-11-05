@@ -41,7 +41,7 @@ def response_time_wave(whatever):
 
     try:
         c = int(whatever)
-    except:
+    except (ValueError, TypeError):
         pass
 
     delay = a * (math.sin(b * x + c) + 1.0)

@@ -1,13 +1,13 @@
 from contextlib import closing, contextmanager
 
 try:
-    from mysql import connector as mysql_connector
-except:
+    import mysql.connector as mysql_connector
+except (ImportError, ModuleNotFoundError):
     mysql_connector = None
 
 try:
     import psycopg2.pool
-except:
+except (ImportError, ModuleNotFoundError):
     psycopg2 = None
 
 from demo import config
@@ -25,12 +25,13 @@ def pgsql_pool_returner(cxn):
 
 
 def mysql():
-    return closing(mysql_connector.MySQLConnection(**config.MYSQL_DSN))
     global MYSQL_POOL
-
     if MYSQL_POOL is None:
-        MYSQL_POOL = mysql_connector.pooling.MySQLConnectionPool(pool_name='mysql_pool', pool_size=10, **config.MYSQL_DSN)
-
+        MYSQL_POOL = mysql_connector.pooling.MySQLConnectionPool(
+            pool_name='mysql_pool', 
+            pool_size=10, 
+            **config.MYSQL_DSN
+        )
     return closing(MYSQL_POOL.get_connection())
 
 
