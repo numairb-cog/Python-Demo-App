@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -13,7 +14,9 @@ import (
 
 const testPort = "9001"
 
-func setupTestServer() *http.Server {
+var testBaseURL string
+
+func TestMain(m *testing.M) {
 	gin.SetMode(gin.TestMode)
 
 	config := LoadConfig()
@@ -38,143 +41,101 @@ func setupTestServer() *http.Server {
 	}()
 
 	time.Sleep(100 * time.Millisecond)
+	testBaseURL = "http://localhost:" + testPort
 
-	return srv
+	code := m.Run()
+
+	srv.Close()
+	os.Exit(code)
 }
 
-func TestAcceptanceIndexPage(t *testing.T) {
-	srv := setupTestServer()
-	defer srv.Close()
-
-	resp, err := http.Get("http://localhost:" + testPort + "/")
+func makeRequest(t *testing.T, path string) *http.Response {
+	resp, err := http.Get(testBaseURL + path)
 	if err != nil {
 		t.Fatalf("Failed to make request: %v", err)
 	}
-	defer resp.Body.Close()
+	return resp
+}
 
+func readBody(t *testing.T, resp *http.Response) string {
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read body: %v", err)
+	}
+	return string(body)
+}
+
+func TestAcceptanceIndexPage(t *testing.T) {
+	resp := makeRequest(t, "/")
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
 	}
 
-	body, _ := io.ReadAll(resp.Body)
-	bodyStr := string(body)
-
-	if !strings.Contains(bodyStr, "Go Gin Demo App") {
-		t.Error("Index page should contain 'Go Gin Demo App'")
-	}
-
-	if !strings.Contains(bodyStr, "/wave/abc") {
-		t.Error("Index page should contain link to /wave/abc")
-	}
-
-	if !strings.Contains(bodyStr, "/error/always") {
-		t.Error("Index page should contain link to /error/always")
+	body := readBody(t, resp)
+	checks := []string{"Go Gin Demo App", "/wave/abc", "/error/always"}
+	for _, check := range checks {
+		if !strings.Contains(body, check) {
+			t.Errorf("Index page should contain '%s'", check)
+		}
 	}
 }
 
 func TestAcceptanceWaveEndpoint(t *testing.T) {
-	srv := setupTestServer()
-	defer srv.Close()
-
-	resp, err := http.Get("http://localhost:" + testPort + "/wave/123")
-	if err != nil {
-		t.Fatalf("Failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
+	resp := makeRequest(t, "/wave/123")
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
 	}
 
-	body, _ := io.ReadAll(resp.Body)
-	bodyStr := string(body)
-
-	if !strings.Contains(bodyStr, "<!DOCTYPE html>") {
-		t.Error("Wave page should contain HTML doctype")
-	}
-
-	if !strings.Contains(bodyStr, "<title>Wave</title>") {
-		t.Error("Wave page should contain Wave title")
+	body := readBody(t, resp)
+	checks := []string{"<!DOCTYPE html>", "<title>Wave</title>"}
+	for _, check := range checks {
+		if !strings.Contains(body, check) {
+			t.Errorf("Wave page should contain '%s'", check)
+		}
 	}
 }
 
 func TestAcceptanceErrorEndpoint(t *testing.T) {
-	srv := setupTestServer()
-	defer srv.Close()
-
-	resp, err := http.Get("http://localhost:" + testPort + "/error/sometimes")
-	if err != nil {
-		t.Fatalf("Failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
+	resp := makeRequest(t, "/error/sometimes")
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusInternalServerError {
 		t.Errorf("Expected status 200 or 500, got %d", resp.StatusCode)
 	}
+	readBody(t, resp)
 }
 
 func TestAcceptanceQueryInvalidType(t *testing.T) {
-	srv := setupTestServer()
-	defer srv.Close()
-
-	resp, err := http.Get("http://localhost:" + testPort + "/query/mysql")
-	if err != nil {
-		t.Fatalf("Failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
+	resp := makeRequest(t, "/query/mysql")
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", resp.StatusCode)
 	}
 
-	body, _ := io.ReadAll(resp.Body)
-	bodyStr := string(body)
-
-	if !strings.Contains(bodyStr, "Only 'pgsql' is supported") {
+	body := readBody(t, resp)
+	if !strings.Contains(body, "Only 'pgsql' is supported") {
 		t.Error("Should return error message about pgsql only")
 	}
 }
 
 func TestAcceptanceHTTPMissingURL(t *testing.T) {
-	srv := setupTestServer()
-	defer srv.Close()
-
-	resp, err := http.Get("http://localhost:" + testPort + "/http")
-	if err != nil {
-		t.Fatalf("Failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
+	resp := makeRequest(t, "/http")
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", resp.StatusCode)
 	}
 
-	body, _ := io.ReadAll(resp.Body)
-	bodyStr := string(body)
-
-	if !strings.Contains(bodyStr, "Missing required argument: url") {
+	body := readBody(t, resp)
+	if !strings.Contains(body, "Missing required argument: url") {
 		t.Error("Should return error message about missing URL")
 	}
 }
 
 func TestAcceptanceHTTPInvalidURL(t *testing.T) {
-	srv := setupTestServer()
-	defer srv.Close()
-
-	resp, err := http.Get("http://localhost:" + testPort + "/http?url=notaurl")
-	if err != nil {
-		t.Fatalf("Failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
+	resp := makeRequest(t, "/http?url=notaurl")
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status 400, got %d", resp.StatusCode)
 	}
 
-	body, _ := io.ReadAll(resp.Body)
-	bodyStr := string(body)
-
-	if !strings.Contains(bodyStr, "url must be a URL with protocol") {
+	body := readBody(t, resp)
+	if !strings.Contains(body, "url must be a URL with protocol") {
 		t.Error("Should return error message about URL format")
 	}
 }
