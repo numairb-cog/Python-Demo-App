@@ -29,14 +29,14 @@ RUN apt-get -y install git
 RUN apt-get -y install software-properties-common
 RUN add-apt-repository -y ppa:deadsnakes/ppa
 RUN apt-get update
-RUN apt-get -y install python3.12
-RUN apt-get -y install python3.12-dev
+RUN apt-get -y install --no-install-recommends python3.12
+RUN apt-get -y install --no-install-recommends python3.12-dev
 RUN apt-get -y install python3-pip
 RUN apt-get -y install postgresql
 RUN apt-get -y install libpq-dev
 RUN apt-get -y install postgresql-client
 RUN apt-get -y install mysql-server
-RUN apt-get -y install libmysqlclient-dev
+RUN apt-get -y install --no-install-recommends libmysqlclient-dev
 RUN apt-get -y install siege
 RUN python3.12 -m pip install --upgrade pip
 RUN python3.12 -m pip install virtualenv
